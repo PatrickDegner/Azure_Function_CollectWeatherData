@@ -1,29 +1,38 @@
+import os
 import logging
 from datetime import datetime, timedelta
-from meteostat import Daily
 import pandas as pd
+from meteostat import Daily
 from azure.storage.blob import BlobServiceClient
-import os
 import azure.functions as func
 from azure.keyvault.secrets import SecretClient
 from azure.identity import ManagedIdentityCredential
 
 
+# Set time period to beginning 2022 and set end to today + 7 days
+start = datetime(2022, 1, 1)
+end = (datetime.now() + timedelta(days=7))
+
+# set file name and temp folder
+file_name = 'weatherdata.parquet'
+tmp_folder = '/tmp/'
+
+# azure blob container name
+container_name = 'weatherdata'
+
+# variables for keyvault
+key_vault_Uri = 'https://patricksvault.vault.azure.net/'
+blob_secret_name = 'weatherdata-storage-connection-string'
+
+
 def main(req: func.HttpRequest) -> func.HttpResponse:
     logging.info('Python HTTP trigger function processed a request.')
-
-    # Set time period to beginning 2022
-    start = datetime(2022, 1, 1)
-    # set end to today + 7 days
-    end = (datetime.now() + timedelta(days=7))
-    # set file name
-    file_name = 'weatherdata.parquet'
 
     # Get daily data from Munich Station
     df = Daily('10865', start, end)
     df = df.fetch()
 
-    # Set city
+    # Add City to dataframe
     df['city'] = 'Munich'
 
     # Rename index from time to date
@@ -35,14 +44,9 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
     df = df.drop(columns=['wpgt'])
 
     # convert to parquet in temp folder
-    df.to_parquet('/tmp/' + file_name)
-
-    # set container name and connection string
-    container_name = 'weatherdata'
+    df.to_parquet(tmp_folder + file_name)
 
     # Get connection string from keyvault
-    key_vault_Uri = 'https://patricksvault.vault.azure.net/'
-    blob_secret_name = 'weatherdata-storage-connection-string'
     az_credential = ManagedIdentityCredential()
 
     secret_client = SecretClient(
@@ -67,11 +71,11 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         container=container_name, blob=file_name)
 
     # Upload the created file
-    with open('/tmp/' + file_name, "rb") as data:
+    with open(tmp_folder + file_name, "rb") as data:
         blob_client.upload_blob(data)
 
     # Delete local file
-    os.remove('/tmp/' + file_name)
+    os.remove(tmp_folder + file_name)
 
     # return success message to http request
     return func.HttpResponse("Weatherdata successfully uploaded to Azure Blob Storage", status_code=200)
