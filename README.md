@@ -5,6 +5,10 @@ This Azure Function gets Weather-Data from 01.01.2022 up to Today + 7 Days and p
 The credentials are hidden in Azure Key Vault.
 Data is processed with Python Pandas.
 
+[Check the code here](https://github.com/PatrickDegner/Azure_Function_CollectWeatherData/blob/master/HttpWeatherData/__init__.py)
+
+</br>
+
 ![Screenshot 2022-11-20 161330](https://user-images.githubusercontent.com/108484798/202910145-c7930cc3-a8ac-4855-92df-d8cf3d706416.png)
 
 ## Tools and libraries
